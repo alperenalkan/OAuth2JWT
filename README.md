@@ -44,8 +44,49 @@ mvn clean install
 
 ### 3. Uygulamayı Çalıştırın
 
+#### Seçenek 1: Maven ile
 ```bash
 mvn spring-boot:run
+```
+
+#### Seçenek 2: Docker Compose ile (Önerilen)
+
+**Tüm servisleri başlat (PostgreSQL + App):**
+```bash
+docker-compose up -d
+```
+
+**Yerel PostgreSQL kullanıyorsanız:**
+```bash
+docker-compose -f docker-compose.local.yml up -d
+```
+
+**Not:** `docker-compose.yml` dosyası PostgreSQL container'ını port 5433'te çalıştırır (yerel PostgreSQL port 5432'de çalışıyorsa). `docker-compose.local.yml` dosyası ise uygulamayı yerel PostgreSQL'e bağlar.
+
+#### Seçenek 3: Docker ile (Manuel)
+```bash
+# PostgreSQL'i çalıştırın
+docker run -d --name postgres \
+  -e POSTGRES_DB=oauth2jwt \
+  -e POSTGRES_USER=techpront \
+  -e POSTGRES_PASSWORD=125322 \
+  -p 5433:5432 \
+  postgres:15-alpine
+
+# Uygulamayı build edin
+docker build -t oauth2jwt:latest .
+
+# Uygulamayı çalıştırın
+docker run -d --name oauth2jwt-app \
+  -p 8080:8080 \
+  -e SPRING_DATASOURCE_URL=jdbc:postgresql://host.docker.internal:5433/oauth2jwt \
+  -e SPRING_DATASOURCE_USERNAME=techpront \
+  -e SPRING_DATASOURCE_PASSWORD=125322 \
+  -e SPRING_JPA_HIBERNATE_DDL_AUTO=none \
+  -e SPRING_SQL_INIT_MODE=always \
+  -e JWT_SECRET=mySecretKeyForJWTTokenGenerationThatShouldBeAtLeast256BitsLong \
+  -e JWT_EXPIRATION=86400000 \
+  oauth2jwt:latest
 ```
 
 Uygulama `http://localhost:8080` adresinde çalışacaktır.
@@ -230,9 +271,11 @@ Authorization: Bearer <token>
 5. **application.properties dosyasını kontrol edin:**
    ```properties
    spring.datasource.url=jdbc:postgresql://localhost:5432/oauth2jwt
-   spring.datasource.username=postgres
-   spring.datasource.password=your_password
+   spring.datasource.username=techpront
+   spring.datasource.password=125322
    ```
+   
+   **Not:** Veritabanı kullanıcı adı ve şifresi `techpront` / `125322` olarak yapılandırılmıştır.
 
 6. **SQL Script'leri:**
    - `schema.sql`: Veritabanı şemasını oluşturur (tablolar, indexler)
@@ -300,8 +343,8 @@ PostgreSQL kullanmak için `application.properties` dosyasını güncelleyin:
 ```properties
 # PostgreSQL Database Configuration
 spring.datasource.url=jdbc:postgresql://localhost:5432/oauth2jwt
-spring.datasource.username=postgres
-spring.datasource.password=your_password
+spring.datasource.username=techpront
+spring.datasource.password=125322
 spring.datasource.driver-class-name=org.postgresql.Driver
 
 # JPA Configuration
@@ -312,7 +355,7 @@ spring.jpa.show-sql=true
 # SQL Script Configuration
 spring.sql.init.mode=always
 spring.sql.init.schema-locations=classpath:schema.sql
-spring.sql.init.data-locations=classpath:data.sql
+# spring.sql.init.data-locations=classpath:data.sql  # DataInitializer kullanılıyor
 spring.sql.init.continue-on-error=true
 ```
 
@@ -435,8 +478,141 @@ src/
     - Tüm ürünleri görüntüleme (GET) ✅
 - `@PreAuthorize("hasRole('ADMIN')")` annotation'ı ile endpoint seviyesinde yetkilendirme
 
+## CI/CD Pipeline
+
+Bu proje GitHub Actions kullanarak CI/CD pipeline'a sahiptir.
+
+### Pipeline Adımları
+
+1. **Checkout**: Kod repository'den çekilir
+2. **Setup JDK 17**: Java 17 kurulumu
+3. **Start PostgreSQL**: Test için PostgreSQL container'ı başlatılır
+4. **Build and Test**: Maven ile proje derlenir ve testler çalıştırılır
+5. **Build Docker Image**: Docker image oluşturulur
+6. **Push to GitHub Container Registry**: Image GitHub Container Registry'ye gönderilir
+
+### GitHub Actions Workflow
+
+`.github/workflows/ci-cd.yml` dosyası aşağıdaki işlemleri yapar:
+
+- ✅ **Checkout**: Kod repository'den çekilir
+- ✅ **Setup JDK 17**: Java 17 kurulumu (Temurin)
+- ✅ **PostgreSQL Service**: Test için PostgreSQL container'ı başlatılır
+  - User: `techpront`
+  - Password: `125322`
+  - Database: `oauth2jwt`
+- ✅ **Run Tests**: Maven test komutu çalıştırılır
+- ✅ **Build Application**: Maven ile proje derlenir
+- ✅ **Build Docker Image**: Docker image oluşturulur
+- ✅ **Push to GitHub Container Registry**: Image `ghcr.io`'ya gönderilir
+  - Image name: `ghcr.io/<your-username>/oauth2jwt:latest`
+
+### Workflow Trigger
+
+Workflow aşağıdaki durumlarda çalışır:
+- `push` event (main branch'e push)
+- `pull_request` event (pull request açıldığında veya güncellendiğinde)
+- Manuel tetikleme (GitHub Actions UI'dan)
+
+### Docker Image
+
+Docker image GitHub Container Registry'de otomatik olarak oluşturulur:
+
+```bash
+# Image'i çek
+docker pull ghcr.io/<your-username>/oauth2jwt:latest
+
+# Çalıştır (PostgreSQL container'ı ile birlikte)
+docker-compose up -d
+```
+
+**Not:** GitHub Container Registry'ye push yapmak için GitHub Actions workflow'unda `GITHUB_TOKEN` kullanılır. Image adını `docker-compose.yml` veya workflow dosyasında güncelleyebilirsiniz.
+
+### Local Development with Docker
+
+#### Docker Compose ile (Önerilen)
+
+**Tüm servisleri başlat (PostgreSQL + App):**
+```bash
+docker-compose up -d
+```
+
+**Yerel PostgreSQL kullanıyorsanız:**
+```bash
+docker-compose -f docker-compose.local.yml up -d
+```
+
+**Logları görüntüle:**
+```bash
+# Tüm servislerin logları
+docker-compose logs -f
+
+# Sadece app logları
+docker-compose logs -f app
+
+# Sadece PostgreSQL logları
+docker-compose logs -f postgres
+```
+
+**Servisleri durdur:**
+```bash
+docker-compose down
+```
+
+**Volume'ları da sil (veritabanı verilerini temizler):**
+```bash
+docker-compose down -v
+```
+
+**Container'ları yeniden build et:**
+```bash
+docker-compose up --build -d
+```
+
+#### Docker Compose Dosyaları
+
+- **`docker-compose.yml`**: PostgreSQL container'ı ile birlikte çalışır
+  - PostgreSQL port: `5433:5432` (yerel PostgreSQL port 5432'de çalışıyorsa)
+  - App port: `8080:8080`
+  
+- **`docker-compose.local.yml`**: Yerel PostgreSQL'e bağlanır
+  - PostgreSQL: `host.docker.internal:5432`
+  - App port: `8080:8080`
+
+### Environment Variables
+
+Docker container'ı için environment variable'lar:
+
+**docker-compose.yml:**
+```yaml
+SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/oauth2jwt
+SPRING_DATASOURCE_USERNAME: techpront
+SPRING_DATASOURCE_PASSWORD: 125322
+SPRING_JPA_HIBERNATE_DDL_AUTO: none
+SPRING_SQL_INIT_MODE: always
+JWT_SECRET: mySecretKeyForJWTTokenGenerationThatShouldBeAtLeast256BitsLong
+JWT_EXPIRATION: 86400000
+```
+
+**docker-compose.local.yml:**
+```yaml
+SPRING_DATASOURCE_URL: jdbc:postgresql://host.docker.internal:5432/oauth2jwt
+SPRING_DATASOURCE_USERNAME: techpront
+SPRING_DATASOURCE_PASSWORD: 125322
+```
+
+### Health Checks
+
+Docker Compose dosyalarında health check'ler yapılandırılmıştır:
+
+- **PostgreSQL**: `pg_isready -U techpront` komutu ile kontrol edilir
+- **App**: Spring Boot Actuator health endpoint'i ile kontrol edilir (`/actuator/health`)
+
+Container'ların durumunu kontrol etmek için:
+```bash
+docker-compose ps
+```
+
 ## Lisans
 
 Bu proje eğitim amaçlı oluşturulmuştur.
-
-# OAuth2JWT

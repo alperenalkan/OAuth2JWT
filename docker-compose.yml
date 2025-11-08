@@ -1,0 +1,57 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: oauth2jwt-postgres
+    environment:
+      POSTGRES_DB: oauth2jwt
+      POSTGRES_USER: techpront
+      POSTGRES_PASSWORD: 125322
+      PGDATABASE: oauth2jwt  # pg_isready için default database
+    ports:
+      - "5433:5432"  # Host port 5433, container port 5432 (5432 zaten kullanımda ise)
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U techpront"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - oauth2jwt-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oauth2jwt-app
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/oauth2jwt
+      SPRING_DATASOURCE_USERNAME: techpront
+      SPRING_DATASOURCE_PASSWORD: 125322
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+      SPRING_SQL_INIT_MODE: always
+      JWT_SECRET: mySecretKeyForJWTTokenGenerationThatShouldBeAtLeast256BitsLong
+      JWT_EXPIRATION: 86400000
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - oauth2jwt-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  oauth2jwt-network:
+    driver: bridge

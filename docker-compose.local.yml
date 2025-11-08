@@ -1,0 +1,33 @@
+# Local PostgreSQL kullanmak için docker-compose.local.yml
+# Kullanım: docker-compose -f docker-compose.local.yml up -d
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oauth2jwt-app
+    environment:
+      # Local PostgreSQL kullan (host.docker.internal ile)
+      SPRING_DATASOURCE_URL: jdbc:postgresql://host.docker.internal:5432/oauth2jwt
+      SPRING_DATASOURCE_USERNAME: techpront
+      SPRING_DATASOURCE_PASSWORD: 125322
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+      SPRING_SQL_INIT_MODE: always
+      SPRING_SQL_INIT_SCHEMA_LOCATIONS: classpath:schema.sql
+      # SPRING_SQL_INIT_DATA_LOCATIONS: classpath:data.sql  # DataInitializer kullanıldığı için devre dışı
+      SPRING_SQL_INIT_CONTINUE_ON_ERROR: "true"
+      JWT_SECRET: mySecretKeyForJWTTokenGenerationThatShouldBeAtLeast256BitsLong
+      JWT_EXPIRATION: 86400000
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
