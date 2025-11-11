@@ -112,6 +112,14 @@ Bu klasör, OAuth2JWT projesi için tüm dokümantasyon ve rehber dosyalarını 
   - Karar matrisi
   - Alternatif çözümler
 
+- **[CORS_CROSSORIGIN_REHBERI.md](./CORS_CROSSORIGIN_REHBERI.md)** - @CrossOrigin(origins = "*") Rehberi
+  - CORS nedir?
+  - Neden kullanıldı?
+  - Projede nerede kullanıldı?
+  - Development vs Production
+  - Güvenlik notları
+  - CORS hataları ve çözümleri
+
 ### 🆘 Yardım ve Sorun Giderme
 
 - **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - Sorun giderme rehberi
@@ -122,6 +130,28 @@ Bu klasör, OAuth2JWT projesi için tüm dokümantasyon ve rehber dosyalarını 
 - **[HELP.md](./HELP.md)** - Yardım dosyası
   - Hızlı referans
   - Sık sorulan sorular
+
+### 🚀 Proje Geliştirme
+
+- **[PROJEYE_EKLENEBILECEK_OZELLIKLER.md](./PROJEYE_EKLENEBILECEK_OZELLIKLER.md)** - Projeye eklenebilecek özellikler
+  - Piyasa standartları
+  - Öncelik sıralaması
+  - Swagger/OpenAPI
+  - Pagination & Sorting
+  - Search & Filtering
+  - Refresh Token
+  - Unit/Integration Tests
+  - Email Service
+  - File Upload/Download
+  - Ve daha fazlası...
+
+- **[SWAGGER_OPENAPI_REHBERI.md](./SWAGGER_OPENAPI_REHBERI.md)** - Swagger/OpenAPI Kullanım Rehberi
+  - Swagger/OpenAPI nedir?
+  - Kurulum adımları
+  - Swagger UI kullanımı
+  - JWT token ile test
+  - Controller annotation'ları
+  - Pratik örnekler
 
 ---
 

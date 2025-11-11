@@ -4,6 +4,13 @@ import com.tpe.oauth2jwt.dto.JwtAuthResponse;
 import com.tpe.oauth2jwt.dto.LoginRequest;
 import com.tpe.oauth2jwt.dto.RegisterRequest;
 import com.tpe.oauth2jwt.service.AuthService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -19,11 +26,21 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/auth")
 @CrossOrigin(origins = "*")
+@Tag(name = "Authentication", description = "Kullanıcı kaydı, girişi ve kimlik doğrulama işlemleri")
 public class AuthController {
 
     @Autowired
     private AuthService authService;
 
+    @Operation(
+            summary = "Kullanıcı kaydı",
+            description = "Yeni kullanıcı kaydı oluşturur ve JWT token döner"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Kullanıcı başarıyla kaydedildi",
+                    content = @Content(schema = @Schema(implementation = JwtAuthResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Geçersiz istek veya kullanıcı adı/email zaten kullanılıyor")
+    })
     @PostMapping("/register")
     public ResponseEntity<JwtAuthResponse> register(@Valid @RequestBody RegisterRequest registerRequest) {
         try {
@@ -34,6 +51,15 @@ public class AuthController {
         }
     }
 
+    @Operation(
+            summary = "Kullanıcı girişi",
+            description = "Kullanıcı adı ve şifre ile giriş yapar ve JWT token döner"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Giriş başarılı",
+                    content = @Content(schema = @Schema(implementation = JwtAuthResponse.class))),
+            @ApiResponse(responseCode = "401", description = "Geçersiz kullanıcı adı veya şifre")
+    })
     @PostMapping("/login")
     public ResponseEntity<JwtAuthResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
         try {
@@ -44,6 +70,15 @@ public class AuthController {
         }
     }
 
+    @Operation(
+            summary = "Mevcut kullanıcı bilgileri",
+            description = "Giriş yapmış kullanıcının bilgilerini döner",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Kullanıcı bilgileri başarıyla alındı"),
+            @ApiResponse(responseCode = "401", description = "Kimlik doğrulama gerekli")
+    })
     @GetMapping("/me")
     public ResponseEntity<Map<String, Object>> getCurrentUser(Authentication authentication) {
         try {

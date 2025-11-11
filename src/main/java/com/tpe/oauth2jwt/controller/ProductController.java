@@ -3,6 +3,13 @@ package com.tpe.oauth2jwt.controller;
 import com.tpe.oauth2jwt.dto.ProductRequest;
 import com.tpe.oauth2jwt.dto.ProductResponse;
 import com.tpe.oauth2jwt.service.ProductService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -16,11 +23,23 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/products")
 @CrossOrigin(origins = "*")
+@Tag(name = "Products", description = "Ürün CRUD işlemleri")
 public class ProductController {
 
     @Autowired
     private ProductService productService;
 
+    @Operation(
+            summary = "Yeni ürün oluştur",
+            description = "Sadece ADMIN rolüne sahip kullanıcılar yeni ürün oluşturabilir",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Ürün başarıyla oluşturuldu",
+                    content = @Content(schema = @Schema(implementation = ProductResponse.class))),
+            @ApiResponse(responseCode = "403", description = "Yetki yok (Sadece ADMIN)"),
+            @ApiResponse(responseCode = "401", description = "Kimlik doğrulama gerekli")
+    })
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ProductResponse> createProduct(
@@ -38,12 +57,32 @@ public class ProductController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @Operation(
+            summary = "Tüm ürünleri listele",
+            description = "Tüm ürünleri listeler (Kimlik doğrulama gerekli)",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Ürünler başarıyla listelendi"),
+            @ApiResponse(responseCode = "401", description = "Kimlik doğrulama gerekli")
+    })
     @GetMapping
     public ResponseEntity<List<ProductResponse>> getAllProducts() {
         List<ProductResponse> products = productService.getAllProducts();
         return ResponseEntity.ok(products);
     }
 
+    @Operation(
+            summary = "Ürün detayı",
+            description = "ID'ye göre ürün detayını getirir",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Ürün bulundu",
+                    content = @Content(schema = @Schema(implementation = ProductResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Ürün bulunamadı"),
+            @ApiResponse(responseCode = "401", description = "Kimlik doğrulama gerekli")
+    })
     @GetMapping("/{id}")
     public ResponseEntity<ProductResponse> getProductById(@PathVariable Long id) {
         try {
@@ -54,6 +93,18 @@ public class ProductController {
         }
     }
 
+    @Operation(
+            summary = "Ürün güncelle",
+            description = "Ürün bilgilerini günceller. Admin herhangi bir ürünü, User sadece kendi ürünlerini güncelleyebilir",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Ürün başarıyla güncellendi",
+                    content = @Content(schema = @Schema(implementation = ProductResponse.class))),
+            @ApiResponse(responseCode = "403", description = "Yetki yok (Sadece kendi ürününüzü güncelleyebilirsiniz)"),
+            @ApiResponse(responseCode = "404", description = "Ürün bulunamadı"),
+            @ApiResponse(responseCode = "401", description = "Kimlik doğrulama gerekli")
+    })
     @PutMapping("/{id}")
     public ResponseEntity<ProductResponse> updateProduct(
             @PathVariable Long id,
@@ -68,6 +119,16 @@ public class ProductController {
         }
     }
 
+    @Operation(
+            summary = "Ürün sil",
+            description = "Sadece ADMIN rolüne sahip kullanıcılar ürün silebilir",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Ürün başarıyla silindi"),
+            @ApiResponse(responseCode = "403", description = "Yetki yok (Sadece ADMIN)"),
+            @ApiResponse(responseCode = "401", description = "Kimlik doğrulama gerekli")
+    })
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteProduct(
@@ -82,6 +143,15 @@ public class ProductController {
         }
     }
 
+    @Operation(
+            summary = "Kendi ürünlerimi listele",
+            description = "Giriş yapmış kullanıcının kendi oluşturduğu ürünleri listeler",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Ürünler başarıyla listelendi"),
+            @ApiResponse(responseCode = "401", description = "Kimlik doğrulama gerekli")
+    })
     @GetMapping("/my-products")
     public ResponseEntity<List<ProductResponse>> getMyProducts(Authentication authentication) {
         String username = authentication.getName();
