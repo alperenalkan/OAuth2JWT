@@ -1,8 +1,7 @@
 package com.tpe.oauth2jwt.controller;
 
-import com.tpe.oauth2jwt.dto.JwtAuthResponse;
-import com.tpe.oauth2jwt.dto.LoginRequest;
-import com.tpe.oauth2jwt.dto.RegisterRequest;
+import com.tpe.oauth2jwt.domain.User;
+import com.tpe.oauth2jwt.dto.*;
 import com.tpe.oauth2jwt.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -21,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @RestController
@@ -87,7 +87,7 @@ public class AuthController {
                 error.put("error", "Authentication not found");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
             }
-            
+
             Map<String, Object> userInfo = new HashMap<>();
             userInfo.put("username", authentication.getName());
             userInfo.put("authorities", authentication.getAuthorities().stream()
@@ -102,5 +102,45 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
+
+    @Operation(
+            summary = "Kullanıcı güncelleme",
+            description = "Varolan kullanıcı güncellenir ve mesaj döner"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Kullanıcı başarıyla güncellendi",
+                    content = @Content(schema = @Schema(implementation = RegisterResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Geçersiz istek böyle bir kullanici bulunamadi")
+    })
+    @PutMapping("update/{id}")
+    public ResponseEntity<Map<String, Object>> updateUser(@PathVariable Long id, @RequestBody RegisterRequest updateRequest, Authentication authentication) {
+        try {
+            Map<String, Object> response = authService.updateUserById(id, updateRequest, authentication);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+
+    @Operation(
+            summary = "Kullanıcı rolü güncelleme",
+            description = "Varolan kullanıcının rol(leri) güncellenir ve mesaj döner"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Kullanıcı rolü başarıyla güncellendi",
+                    content = @Content(schema = @Schema(implementation = UpdateRoleResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Geçersiz istek"),
+            @ApiResponse(responseCode = "403", description = "Bu işlemi yapmaya yetkiniz yok"),
+            @ApiResponse(responseCode = "404", description = "Böyle bir kullanıcı bulunamadı")
+    })
+    @PutMapping("role/{id}")
+    public ResponseEntity<UpdateRoleResponse> updateRole(@PathVariable Long id,
+                                                         @RequestBody @Valid UpdateRoleRequest request,
+                                                         Authentication authentication) {
+        UpdateRoleResponse response = authService.updateRoleById(id, request, authentication);
+        return ResponseEntity.ok(response);
+    }
+
 }
 

@@ -1,18 +1,18 @@
 package com.tpe.oauth2jwt.dto;
 
+import com.tpe.oauth2jwt.domain.User;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import lombok.experimental.SuperBuilder;
+
+import java.util.Set;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class JwtAuthResponse {
-    private String token;
-    private String type = "Bearer";
-    private String username;
+public class UpdateRoleResponse {
+    private String message;
+    private Set<User.Role> roles;
 }
-
