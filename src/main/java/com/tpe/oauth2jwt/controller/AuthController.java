@@ -1,6 +1,5 @@
 package com.tpe.oauth2jwt.controller;
 
-import com.tpe.oauth2jwt.domain.User;
 import com.tpe.oauth2jwt.dto.*;
 import com.tpe.oauth2jwt.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,15 +11,17 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @RestController
@@ -141,6 +142,53 @@ public class AuthController {
         UpdateRoleResponse response = authService.updateRoleById(id, request, authentication);
         return ResponseEntity.ok(response);
     }
+
+    @Operation(
+            summary = "Kullanıcıları sayfalama ile listele",
+            description = "Sadece ADMIN rolüne sahip kullanıcılar tüm kullanıcıları sayfalama ile listeleyebilir. Role parametresi ile filtreleme yapılabilir (ALL, ADMIN, USER)",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Kullanıcılar başarıyla listelendi",
+                    content = @Content(schema = @Schema(implementation = Page.class))),
+            @ApiResponse(responseCode = "403", description = "Yetki yok (Sadece ADMIN)"),
+            @ApiResponse(responseCode = "401", description = "Kimlik doğrulama gerekli"),
+            @ApiResponse(responseCode = "400", description = "Geçersiz role parametresi")
+    })
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/getAllUserPage")
+    public ResponseEntity<Page<RegisterResponse>> getUserByPage(
+            @RequestParam(value = "role", defaultValue = "ALL", required = false) String role,
+            @RequestParam(value = "page", defaultValue = "0", required = false) int page,
+            @RequestParam(value = "size", defaultValue = "10", required = false) int size,
+            @RequestParam(value = "sortBy", defaultValue = "firstName", required = false) String sortBy,
+            @RequestParam(value = "order", defaultValue = "ASC", required = false) String orderStr
+    ) {
+                        // 1. Başlangıçta default değer: ASC (artan sıralama)
+                Sort.Direction order = Sort.Direction.ASC;
+
+                // 2. Eğer orderStr parametresi gönderilmişse (null değilse ve boş değilse)
+                if (orderStr != null && !orderStr.isBlank()) {
+                try {
+                        // 3. String'i büyük harfe çevirip enum'a dönüştür
+                        // Örnek: "asc" -> "ASC" -> Sort.Direction.ASC
+                        // Örnek: "desc" -> "DESC" -> Sort.Direction.DESC
+                        order = Sort.Direction.valueOf(orderStr.toUpperCase());
+                } catch (IllegalArgumentException e) {
+                        // 4. Eğer geçersiz bir değer gelirse (örn: "xyz")
+                        //    Hata fırlatmak yerine default olarak ASC kullan
+                        order = Sort.Direction.ASC;
+                }
+                }
+        
+        Page<RegisterResponse> adminsOrUsers =
+                authService.getUsersByPage(page, size, sortBy, order, role);
+
+        return new ResponseEntity<>(adminsOrUsers, HttpStatus.OK);
+    }
+
+
+
 
 }
 

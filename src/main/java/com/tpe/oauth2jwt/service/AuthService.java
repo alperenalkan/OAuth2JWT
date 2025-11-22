@@ -6,8 +6,13 @@ import com.tpe.oauth2jwt.exception.ResourseNotFoundException;
 import com.tpe.oauth2jwt.mapper.UserMapper;
 import com.tpe.oauth2jwt.repository.UserRepository;
 import com.tpe.oauth2jwt.security.JwtTokenProvider;
+
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -38,6 +43,8 @@ public class AuthService {
 
     @Autowired
     private UserMapper userMapper;
+
+
 
     public JwtAuthResponse register(RegisterRequest registerRequest) {
         if (userRepository.existsByUsername(registerRequest.getUsername())) {
@@ -150,6 +157,41 @@ public class AuthService {
                 "Role updated successfully!",
                 user.getRoles()
         );
+    }
+
+    public Page<RegisterResponse> getUsersByPage(
+            int page, int size, String sortBy, Sort.Direction order, String userRole) {
+
+        // Spring Data uses 0-based indexing, ensure page >= 0
+        int safePage = Math.max(0, page);
+        int safeSize = size <= 0 ? 10 : Math.min(size, 100);
+        
+        Pageable pageable = PageRequest.of(safePage, safeSize, order, sortBy);
+
+        // Handle null, blank, or "ALL" case - return all users without role filtering
+        if (userRole == null || userRole.isBlank() || "ALL".equalsIgnoreCase(userRole.trim())) {
+            return userRepository.findAll(pageable)
+                    .map(userMapper::userToUserResponse);
+        }
+
+        // Normalize role: trim, uppercase, and add ROLE_ prefix if needed
+        String normalizedRole = userRole.trim().toUpperCase();
+        if (!normalizedRole.startsWith("ROLE_")) {
+            normalizedRole = "ROLE_" + normalizedRole;
+        }
+
+        // Convert to enum
+        User.Role roleEnum;
+        try {
+            roleEnum = User.Role.valueOf(normalizedRole);
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException(
+                String.format("Invalid role: '%s'. Use ALL, ADMIN/ROLE_ADMIN, or USER/ROLE_USER", userRole)
+            );
+        }
+
+        Page<User> users = userRepository.findByRole(roleEnum, pageable);
+        return users.map(userMapper::userToUserResponse);
     }
 
 }
